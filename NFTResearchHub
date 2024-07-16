@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract NFTResearchHub is Ownable {
+    struct Publication {
+        uint256 id;
+        address author;
+        string title;
+        string content;
+        uint256 timestamp;
+        bool isActive;
+    }
+
+    uint256 public nextPublicationId;
+    mapping(uint256 => Publication) public publications;
+    mapping(address => uint256[]) private authorPublications;
+
+    // Events
+    event PublicationAdded(uint256 indexed id, address indexed author, string title, uint256 timestamp);
+    event PublicationRemoved(uint256 indexed id);
+
+    // Add a new publication
+    function addPublication(string memory title, string memory content) external {
+        require(bytes(title).length > 0, "Title cannot be empty");
+        require(bytes(content).length > 0, "Content cannot be empty");
+
+        uint256 publicationId = nextPublicationId++;
+
+        publications[publicationId] = Publication({
+            id: publicationId,
+            author: msg.sender,
+            title: title,
+            content: content,
+            timestamp: block.timestamp,
+            isActive: true
+        });
+
+        authorPublications[msg.sender].push(publicationId);
+
+        emit PublicationAdded(publicationId, msg.sender, title, block.timestamp);
+    }
+
+    // Get total number of publications
+    function getTotalPublications() external view returns (uint256) {
+        return nextPublicationId;
+    }
+
+    // Get publication details by ID
+    function getPublication(uint256 id) external view returns (
+        address author,
+        string memory title,
+        string memory content,
+        uint256 timestamp,
+        bool isActive
+    ) {
+        require(id < nextPublicationId, "Publication does not exist");
+
+        Publication memory publication = publications[id];
+        return (publication.author, publication.title, publication.content, publication.timestamp, publication.isActive);
+    }
+
+    // Get publications by author
+    function getPublicationsByAuthor(address author) external view returns (uint256[] memory) {
+        return authorPublications[author];
+    }
+
+    // Remove a publication by ID (onlyOwner)
+    function removePublication(uint256 id) external onlyOwner {
+        require(id < nextPublicationId, "Publication does not exist");
+        require(publications[id].isActive, "Publication already removed");
+
+        publications[id].isActive = false;
+
+        emit PublicationRemoved(id);
+    }
+}
